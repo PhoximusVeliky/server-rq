@@ -16,13 +16,16 @@ const createTrack = async (req, res) => {
       startTime,
       endTime,
       routeId: routeId || null,
-      earnedCoins: Math.floor(distance / 10), // 1 монета за 10 метров
+      earnedCoins: Math.floor(distance / 10),
     });
 
-    // Начисляем монеты пользователю
-    await User.findByIdAndUpdate(req.user._id, {
-      $inc: { coins: track.earnedCoins },
-    });
+    // ✅ Безопасное начисление монет
+    const user = await User.findById(req.user._id);
+    if (user.coins === undefined || user.coins === null) {
+      user.coins = 0;
+    }
+    user.coins += track.earnedCoins;
+    await user.save();
 
     // Проверяем достижения
     await checkAchievements(req.user._id);
@@ -33,6 +36,7 @@ const createTrack = async (req, res) => {
       message: 'Тренировка сохранена',
     });
   } catch (error) {
+    console.error('Ошибка сохранения тренировки:', error);
     res.status(500).json({ message: 'Ошибка сохранения тренировки', error: error.message });
   }
 };
@@ -61,7 +65,6 @@ const getUserStats = async (req, res) => {
     const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
     const totalTracks = tracks.length;
 
-    // Группировка по датам для календаря активности
     const activityByDate = {};
     tracks.forEach(track => {
       const date = track.date.toISOString().split('T')[0];
@@ -88,11 +91,10 @@ const checkAchievements = async (userId) => {
   const tracks = await Track.find({ user: userId });
   const allAchievements = await Achievement.find();
 
-  const totalDistance = tracks.reduce((sum, t) => sum + t.distance, 0) / 1000; // в км
+  const totalDistance = tracks.reduce((sum, t) => sum + t.distance, 0) / 1000;
   const totalTracks = tracks.length;
 
   for (const achievement of allAchievements) {
-    // Пропускаем, если уже получено
     if (user.unlockedAchievements.includes(achievement._id)) continue;
 
     let unlocked = false;
@@ -107,7 +109,7 @@ const checkAchievements = async (userId) => {
 
     if (unlocked) {
       user.unlockedAchievements.push(achievement._id);
-      user.coins += achievement.rewardCoins; // Начисляем бонус
+      user.coins += achievement.rewardCoins;
     }
   }
 
