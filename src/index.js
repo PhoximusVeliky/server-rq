@@ -13,9 +13,9 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Увеличиваем лимит для GeoJSON
+app.use(express.json({ limit: '10mb' }));
 
-// Маршруты
+// ✅ ВСЕ маршруты должны быть подключены
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tracks', require('./routes/trackRoutes'));
 app.use('/api/routes', require('./routes/routeRoutes'));
